@@ -1,0 +1,20 @@
+# ==============================================================
+# AIQC – Configuración de Streamlit (tema y servidor)
+# El tema nativo cubre los widgets base; el refinado visual está en
+# aiqc/styles.py. Ambos comparten la misma paleta.
+# ==============================================================
+
+[theme]
+base = "light"
+primaryColor = "#1A6FC4"
+backgroundColor = "#F6F8FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1C2B3A"
+font = "sans serif"
+
+[server]
+# Límite de subida acorde a archivos de QC (CSV/Excel), no vídeos.
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false
