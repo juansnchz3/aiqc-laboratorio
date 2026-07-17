@@ -440,24 +440,15 @@ if data_src == "🔬 Modo Demo":
         unsafe_allow_html=True,
     )
 
-# ==============================================================
-# TABS
-# ==============================================================
-tab_dash, tab_ewma, tab_sigma, tab_biorad, tab_chat, tab_log, tab_usuarios, tab_cfg = st.tabs(
-    [
-        "📊 Dashboard",
-        "📉 EWMA/CUSUM",
-        "📈 Sigma Metrics",
-        "📋 Guía Bio-Rad",
-        "🤖 Asistente IA",
-        "📝 Registro",
-        "👥 Usuarios",
-        "⚙ Configuración",
-    ]
-)
 
-# ── TAB 1: DASHBOARD ─────────────────────────────────────────
-with tab_dash:
+# ==============================================================
+# PÁGINAS
+# Cada sección es una función que se registra en st.navigation al final.
+# Leen el estado compartido (df_all, eval_rango, ultima…) del ámbito de
+# módulo, ya calculado arriba; st.navigation solo ejecuta la página activa.
+# ==============================================================
+# ── PÁGINA: DASHBOARD ────────────────────────────────────────
+def _page_dashboard():
     # Panel semáforo: vista global del laboratorio (matriz analito × nivel),
     # embebido con components.html. Reusa los dicts ya evaluados y cacheados.
     resumen_lab = construir_resumen(eval_rango, r4s_por_analito)
@@ -539,8 +530,9 @@ with tab_dash:
             unsafe_allow_html=True,
         )
 
+
 # ── TAB 2: EWMA / CUSUM ──────────────────────────────────────
-with tab_ewma:
+def _page_ewma():
     st.markdown("### 📉 EWMA / CUSUM — Detección Temprana de Tendencias")
     if df_series.empty or ultima is None:
         st.warning("No hay datos para el analito/nivel/rango seleccionado.")
@@ -625,8 +617,9 @@ with tab_ewma:
         tabla_ec["Estado EWMA"] = tabla_ec["Estado EWMA"].apply(estado_badge)
         st.write(tabla_ec.to_html(escape=False, index=False), unsafe_allow_html=True)
 
+
 # ── TAB 3: SIGMA METRICS ─────────────────────────────────────
-with tab_sigma:
+def _page_sigma():
     st.markdown("### 📈 Sigma Metrics — Evaluación de Calidad Analítica")
     with st.expander("⚙ Editar límites TEa por analito", expanded=False):
         tea_editado = {}
@@ -766,8 +759,9 @@ with tab_sigma:
             else:
                 st.error(f"{lbl} · deficiente. Revisar.")
 
+
 # ── TAB 4: GUÍA BIO-RAD ──────────────────────────────────────
-with tab_biorad:
+def _page_biorad():
     st.markdown("### 📋 Guía Bio-Rad de Acciones Correctivas")
     col_sel1, col_sel2 = st.columns([2, 1])
     with col_sel1:
@@ -813,8 +807,9 @@ with tab_biorad:
         con_ficha = [a for a in analitos_grupo if a in BIORAD_KB]
         st.markdown(f"**{grupo}:** " + " · ".join([f"`{a}`" for a in con_ficha]))
 
+
 # ── TAB 5: ASISTENTE IA ──────────────────────────────────────
-with tab_chat:
+def _page_chat():
     st.markdown("### 🤖 Asistente AIQC — Powered by Google Gemini")
     modelo_activo = st.session_state.get("gemini_model_active", "models/gemini-2.5-flash")
     st.markdown(
@@ -863,8 +858,9 @@ with tab_chat:
         st.session_state["messages"] = [st.session_state["messages"][0]]
         st.rerun()
 
+
 # ── TAB 6: REGISTRO ──────────────────────────────────────────
-with tab_log:
+def _page_log():
     col_ttl, col_csv, col_pdf = st.columns([3, 1, 1])
     with col_ttl:
         st.markdown("### 📝 Registro de Incidencias y Trazabilidad")
@@ -996,8 +992,9 @@ with tab_log:
         elif pend:
             st.warning(f"⚠ {pend} violación(es) pendiente(s).")
 
+
 # ── TAB 7: USUARIOS ──────────────────────────────────────────
-with tab_usuarios:
+def _page_usuarios():
     st.markdown("### 👥 Gestión de Usuarios")
     if not tiene_permiso(rol_actual, "admin"):
         st.warning("🔒 Solo los administradores pueden gestionar usuarios.")
@@ -1135,8 +1132,9 @@ with tab_usuarios:
                     unsafe_allow_html=True,
                 )
 
+
 # ── TAB 8: CONFIGURACIÓN ─────────────────────────────────────
-with tab_cfg:
+def _page_cfg():
     st.markdown("### ⚙ Configuración del laboratorio")
     st.caption("Introduce los valores objetivo de tus controles y el lote activo.")
     if "cfg_analitos" not in st.session_state:
@@ -1262,3 +1260,21 @@ with tab_cfg:
             registrar_auditoria(db_con, usuario_actual, "SYNC_GITHUB", msg)
             st.success(msg)
             st.rerun()
+
+
+# ==============================================================
+# NAVEGACIÓN (páginas)
+# st.navigation sustituye a las 8 tabs: solo ejecuta la página activa
+# (las tabs renderizaban las 8 en cada rerun). El nav vive en el sidebar.
+# ==============================================================
+_paginas = [
+    st.Page(_page_dashboard, title="Dashboard", icon="📊", default=True),
+    st.Page(_page_ewma, title="EWMA / CUSUM", icon="📉"),
+    st.Page(_page_sigma, title="Sigma Metrics", icon="📈"),
+    st.Page(_page_biorad, title="Guía Bio-Rad", icon="📋"),
+    st.Page(_page_chat, title="Asistente IA", icon="🤖"),
+    st.Page(_page_log, title="Registro", icon="📝"),
+    st.Page(_page_usuarios, title="Usuarios", icon="👥"),
+    st.Page(_page_cfg, title="Configuración", icon="⚙"),
+]
+st.navigation(_paginas, position="sidebar").run()
