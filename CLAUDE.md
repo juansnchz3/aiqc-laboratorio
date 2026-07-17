@@ -71,6 +71,7 @@ Punto de entrada `app.py` (raíz). Toda la lógica vive en el paquete `aiqc/`:
 | `aiqc/knowledge_base.py` | `BIORAD_KB`, `GRUPOS_ANALITICOS`, `NIVELES`, `COBAS_8000_KB`, `TEA_CLIA`, `buscar_kb`, `nivel_badge`. **Sin** dependencias de terceros. |
 | `aiqc/database.py`     | SQLite: usuarios, acciones, auditoría; login bcrypt; `tiene_permiso`; `render_login`. |
 | `aiqc/data_io.py`      | `build_demo` (cacheado), lectura/normalización CSV-Excel, sync GitHub/OpenLab. |
+| `aiqc/measurements.py` | Persistencia de mediciones QC en SQLite: `guardar_mediciones` (append con dedup), `cargar_mediciones`, `borrar_fuente`, `resumen_fuentes`. Sin dependencias de UI. |
 | `aiqc/qc_rules.py`     | Núcleo estadístico: `evaluar_westgard`, `evaluar_r4s`, `calcular_ewma`, `calcular_cusum`, `calcular_sigma`. |
 | `aiqc/charts.py`       | Figuras Plotly (LJ, EWMA, CUSUM) y paneles UI (`render_kb_panel`, `render_r4s_alert`, `estado_badge`). |
 | `aiqc/reports.py`      | Exportación `generar_csv` y `generar_pdf`. |
@@ -118,6 +119,17 @@ app.py importa de todos.
 
 - La conexión SQLite vive en `st.session_state["db_con"]`.
 - Prioridad de fuente de datos: `df_github` → `df_manual` → `build_demo()`.
+- **Persistencia de mediciones:** al cargar un CSV/Excel o sincronizar GitHub,
+  los datos se guardan en la tabla `mediciones` (`aiqc/measurements.py`) además
+  de en `session_state`. Al arrancar, la app rehidrata `df_manual`/`df_github`
+  desde la BD si `session_state` está vacío (una vez por sesión de servidor,
+  flag `_persistencia_rehidratada`). Clave de dedup: `(fecha, analito, nivel,
+  fuente)` — recargar el mismo archivo actualiza, no duplica.
+- **⚠ Disco efímero en Streamlit Community Cloud:** la BD SQLite sobrevive a
+  recargas de página y reruns, pero **NO a un redeploy o reinicio del
+  contenedor**. Para persistencia duradera hay que apuntar `[db].path` a un
+  volumen persistente o migrar a una BD externa (Postgres, Turso/libSQL). Ver
+  `ARCHITECTURE.md` (Fase 1).
 - Toda acción relevante (login, export, sync, cambios de usuario) debe llamar a
   `registrar_auditoria(...)`.
 

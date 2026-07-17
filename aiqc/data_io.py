@@ -129,13 +129,18 @@ def normalizar_df(df):
         "n3": "PA",
         "3": "PA",
     }
-    df2["Nivel"] = (
-        df2["Nivel"].astype(str).str.lower().str.strip().map(lambda x: nivel_map.get(x, "N"))
-    )
+    df2["Nivel"] = df2["Nivel"].astype(str).map(lambda x: nivel_map.get(_norm(x), "N"))
+    n_antes = len(df2)
     df2 = df2.dropna(subset=obligatorias)
     if df2.empty:
         return None, "Sin filas válidas."
-    return df2[obligatorias + ["Nivel", "Lote"]].reset_index(drop=True), ""
+    n_descartadas = n_antes - len(df2)
+    aviso = (
+        f"⚠ {n_descartadas} fila(s) descartada(s) por fecha o valor ilegible."
+        if n_descartadas
+        else ""
+    )
+    return df2[obligatorias + ["Nivel", "Lote"]].reset_index(drop=True), aviso
 
 
 def leer_archivo(uploaded):
@@ -182,11 +187,12 @@ def leer_csv_github():
             df_raw = pd.read_csv(
                 io.BytesIO(contenido), sep=None, engine="python", encoding="utf-8-sig"
             )
-        df, err = normalizar_df(df_raw)
+        df, aviso = normalizar_df(df_raw)
         if df is None:
-            return None, f"CSV descargado pero formato incorrecto: {err}"
+            return None, f"CSV descargado pero formato incorrecto: {aviso}"
         ts = datetime.now().strftime("%d/%m/%Y %H:%M")
-        return df, f"✅ {len(df)} filas · {df['Analito'].nunique()} analito(s) · sync {ts}"
+        extra = f" · {aviso}" if aviso else ""
+        return df, f"✅ {len(df)} filas · {df['Analito'].nunique()} analito(s) · sync {ts}{extra}"
     except requests.exceptions.ConnectionError:
         return None, "Sin conexión a internet."
     except Exception as e:

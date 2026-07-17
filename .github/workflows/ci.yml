@@ -53,3 +53,23 @@ jobs:
 
       - name: Comprobar que el paquete importa
         run: python -c "import aiqc, aiqc.knowledge_base, aiqc.qc_rules; print('aiqc', aiqc.__version__)"
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ejecutar tests
+        run: pytest tests/ -q

@@ -33,6 +33,12 @@ from aiqc.database import (
     hash_password,
 )
 from aiqc.data_io import build_demo, leer_archivo, leer_csv_github, auto_refresh_github
+from aiqc.measurements import (
+    guardar_mediciones,
+    cargar_mediciones,
+    borrar_fuente,
+    resumen_fuentes,
+)
 from aiqc.qc_rules import (
     evaluar_westgard,
     evaluar_r4s,
@@ -88,7 +94,47 @@ usuario_sesion = st.session_state.get(
 usuario_actual = usuario_sesion["username"]
 rol_actual = usuario_sesion["rol"]
 
+# Rehidratar datos persistidos: si session_state está vacío (recarga, nuevo
+# login) pero hay mediciones en la BD, se recuperan. Así los datos cargados
+# sobreviven a recargas de página. Solo una vez por sesión de servidor.
+if not st.session_state.get("_persistencia_rehidratada"):
+    df_manual_bd = cargar_mediciones(db_con, fuente="manual")
+    if not df_manual_bd.empty and st.session_state.get("df_manual") is None:
+        st.session_state["df_manual"] = df_manual_bd
+        st.session_state["data_src_manual"] = f"💾 Datos guardados ({len(df_manual_bd)} filas)"
+    df_github_bd = cargar_mediciones(db_con, fuente="github")
+    if not df_github_bd.empty and st.session_state.get("df_github") is None:
+        st.session_state["df_github"] = df_github_bd
+        st.session_state["data_src_github"] = f"💾 Datos guardados ({len(df_github_bd)} filas)"
+    st.session_state["_persistencia_rehidratada"] = True
+
 ESTADO_CLS = {"Verde": "estado-verde", "Ámbar": "estado-ambar", "Rojo": "estado-rojo"}
+
+
+# ==============================================================
+# EVALUACIÓN CACHEADA
+# Westgard/R-4s se evalúan UNA vez por rerun y por rango; todas las
+# secciones (sidebar, tabs, registro) consumen estos diccionarios.
+# ==============================================================
+@st.cache_data(show_spinner=False)
+def evaluar_todo(df_all, f_min=None, f_max=None):
+    """{(analito, nivel): df evaluado con Westgard} en el rango dado (o completo)."""
+    df_rango = df_all
+    if f_min is not None and f_max is not None:
+        df_rango = df_all[
+            (df_all["Fecha"] >= pd.Timestamp(f_min)) & (df_all["Fecha"] <= pd.Timestamp(f_max))
+        ]
+    return {
+        (an, niv): evaluar_westgard(sub.copy())
+        for (an, niv), sub in df_rango.groupby(["Analito", "Nivel"])
+    }
+
+
+@st.cache_data(show_spinner=False)
+def evaluar_r4s_todo(df_all, f_min, f_max):
+    """{analito: resultado R-4s (o None)} en el rango dado."""
+    return {an: evaluar_r4s(df_all, an, f_min, f_max) for an in df_all["Analito"].unique()}
+
 
 # ==============================================================
 # SIDEBAR
@@ -124,19 +170,37 @@ with st.sidebar:
             help="Columnas: Fecha, Analito, Nivel (N/PB/PA), Valor, Media_Objetivo, SD_Objetivo, Lote.",
             key="uploader_manual",
         )
-        if uploaded:
-            df_cargado, err = leer_archivo(uploaded)
+        if uploaded and uploaded.name != st.session_state.get("_ultimo_archivo_cargado"):
+            df_cargado, aviso = leer_archivo(uploaded)
             if df_cargado is not None:
-                st.session_state["df_manual"] = df_cargado
+                if aviso:
+                    st.warning(aviso)
+                # Persistir en la BD (append con dedup por fuente 'manual').
+                try:
+                    nuevas, actualizadas = guardar_mediciones(
+                        db_con, df_cargado, fuente="manual", usuario=usuario_actual
+                    )
+                    df_persistido = cargar_mediciones(db_con, fuente="manual")
+                    st.session_state["df_manual"] = df_persistido
+                    detalle = f"{uploaded.name}: {nuevas} nuevas, {actualizadas} actualizadas"
+                except Exception as e:
+                    # Si la persistencia falla, la app sigue con los datos en memoria.
+                    logger.exception("Fallo al persistir mediciones manuales")
+                    st.session_state["df_manual"] = df_cargado
+                    df_persistido = df_cargado
+                    detalle = f"{uploaded.name} (solo en memoria: {e})"
                 st.session_state["data_src_manual"] = f"📄 {uploaded.name}"
-                registrar_auditoria(db_con, usuario_actual, "CARGA_ARCHIVO", uploaded.name)
+                st.session_state["_ultimo_archivo_cargado"] = uploaded.name
+                registrar_auditoria(db_con, usuario_actual, "CARGA_ARCHIVO", detalle)
                 st.markdown(
                     f'<div class="data-pill">✅ <b>{uploaded.name}</b><br>'
-                    f'{len(df_cargado)} filas · {df_cargado["Analito"].nunique()} analito(s)</div>',
+                    f"{len(df_persistido)} filas acumuladas · "
+                    f'{df_persistido["Analito"].nunique()} analito(s)</div>',
                     unsafe_allow_html=True,
                 )
+                st.rerun()
             else:
-                st.error(err)
+                st.error(aviso)
 
     with tab_src2:
         cfg_gh = get_section("github")
@@ -159,6 +223,11 @@ with st.sidebar:
                 with st.spinner("Conectando con GitHub…"):
                     df_gh, msg = leer_csv_github()
                 if df_gh is not None:
+                    try:
+                        guardar_mediciones(db_con, df_gh, fuente="github", usuario=usuario_actual)
+                        df_gh = cargar_mediciones(db_con, fuente="github")
+                    except Exception:
+                        logger.exception("Fallo al persistir mediciones de GitHub")
                     st.session_state["df_github"] = df_gh
                     st.session_state["data_src_github"] = msg
                     st.session_state["github_last_sync"] = datetime.now()
@@ -176,10 +245,42 @@ with st.sidebar:
                 with st.spinner("Cargando datos OpenLab desde GitHub…"):
                     df_gh, msg = leer_csv_github()
                 if df_gh is not None:
+                    try:
+                        guardar_mediciones(db_con, df_gh, fuente="github", usuario=usuario_actual)
+                        df_gh = cargar_mediciones(db_con, fuente="github")
+                    except Exception:
+                        logger.exception("Fallo al persistir mediciones de GitHub (auto-sync)")
                     st.session_state["df_github"] = df_gh
                     st.session_state["data_src_github"] = msg
                     st.session_state["github_last_sync"] = datetime.now()
                     st.rerun()
+
+    # Datos persistidos: resumen y borrado por fuente.
+    fuentes_bd = resumen_fuentes(db_con)
+    if fuentes_bd:
+        total_filas = sum(f["filas"] for f in fuentes_bd.values())
+        with st.expander(f"💾 Datos guardados ({total_filas} filas)", expanded=False):
+            for fuente, info in fuentes_bd.items():
+                cols_bd = st.columns([3, 1])
+                cols_bd[0].caption(
+                    f"**{fuente}** · {info['filas']} filas · {info['analitos']} analito(s)"
+                )
+                if cols_bd[1].button("🗑", key=f"del_fuente_{fuente}", help=f"Borrar '{fuente}'"):
+                    borrar_fuente(db_con, fuente)
+                    registrar_auditoria(db_con, usuario_actual, "BORRAR_MEDICIONES", fuente)
+                    for k in ("df_manual", "df_github", "data_src_manual", "data_src_github"):
+                        if fuente in k or (fuente == "github" and "github" in k):
+                            st.session_state.pop(k, None)
+                    if fuente == "manual":
+                        st.session_state.pop("df_manual", None)
+                        st.session_state.pop("_ultimo_archivo_cargado", None)
+                    else:
+                        st.session_state.pop("df_github", None)
+                    st.rerun()
+            st.caption(
+                "⚠ En Streamlit Cloud el disco es efímero: estos datos se borran "
+                "al reiniciarse o redesplegarse la app."
+            )
 
     st.markdown("---")
 
@@ -246,15 +347,17 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("**Estado del laboratorio**")
+    eval_completo = evaluar_todo(df_all)
+    r4s_por_analito = evaluar_r4s_todo(df_all, f_min, f_max)
     for an in sorted(df_all["Analito"].unique()):
         for niv in sorted(df_all[df_all["Analito"] == an]["Nivel"].unique()):
-            sub = evaluar_westgard(
-                df_all[(df_all["Analito"] == an) & (df_all["Nivel"] == niv)].copy()
-            )
+            sub = eval_completo.get((an, niv))
+            if sub is None or sub.empty:
+                continue
             est = sub.iloc[-1]["Estado"]
             led = {"Verde": "🟢", "Ámbar": "🟡", "Rojo": "🔴"}.get(est, "⚪")
             st.markdown(f"{led} **{an}** · {NIVELES.get(niv, NIVELES['N'])['label']} — {est}")
-        r4s_sb = evaluar_r4s(df_all, an, f_min, f_max)
+        r4s_sb = r4s_por_analito.get(an)
         if r4s_sb:
             st.markdown(f"⚡ **{an}** · R-4s: {r4s_sb['label_a']} vs {r4s_sb['label_b']}")
 
@@ -269,16 +372,11 @@ with st.sidebar:
 # ==============================================================
 # DATOS ACTIVOS
 # ==============================================================
-df_raw = df_all[
-    (df_all["Analito"] == analito)
-    & (df_all["Nivel"] == nivel_activo)
-    & (df_all["Fecha"] >= pd.Timestamp(f_min))
-    & (df_all["Fecha"] <= pd.Timestamp(f_max))
-].copy()
-df_series = evaluar_westgard(df_raw)
+eval_rango = evaluar_todo(df_all, f_min, f_max)
+df_series = eval_rango.get((analito, nivel_activo), pd.DataFrame())
 ultima = df_series.iloc[-1] if not df_series.empty else None
 analitos_ls = sorted(df_all["Analito"].unique())
-r4s_result = evaluar_r4s(df_all, analito, f_min, f_max)
+r4s_result = r4s_por_analito.get(analito)
 estado_actual = ultima["Estado"] if ultima is not None else "Verde"
 
 # ==============================================================
@@ -304,63 +402,20 @@ st.markdown(
 )
 
 # ==============================================================
-# BARRA DE CONTROLES RÁPIDOS (siempre visible)
+# BARRA DE CONTEXTO (solo lectura)
+# La selección se hace en el sidebar; duplicar aquí los widgets creaba
+# estados divergentes y errores de session_state al sincronizarlos.
 # ==============================================================
-st.markdown('<div class="quick-bar">', unsafe_allow_html=True)
-qc1, qc2, qc3, qc4, qc5 = st.columns([2, 1.5, 1.5, 1.5, 1.5])
-with qc1:
-    analito_q = st.selectbox(
-        "Analito",
-        options=sorted(df_all["Analito"].unique()),
-        index=sorted(df_all["Analito"].unique()).index(analito),
-        key="q_analito",
-        label_visibility="collapsed",
-    )
-    if analito_q != analito:
-        st.session_state["sel_analito"] = analito_q
-        st.rerun()
-with qc2:
-    niveles_q = sorted(df_all[df_all["Analito"] == analito]["Nivel"].unique())
-    labels_q = [NIVELES.get(n, NIVELES["N"])["label"] for n in niveles_q]
-    label_actual = NIVELES.get(nivel_activo, NIVELES["N"])["label"]
-    idx_q = labels_q.index(label_actual) if label_actual in labels_q else 0
-    nivel_q = st.selectbox(
-        "Nivel", options=labels_q, index=idx_q, key="q_nivel", label_visibility="collapsed"
-    )
-    nivel_cod_q = {NIVELES.get(n, NIVELES["N"])["label"]: n for n in niveles_q}.get(nivel_q, "N")
-    if nivel_cod_q != nivel_activo:
-        st.session_state["sel_nivel"] = nivel_q
-        st.rerun()
-with qc3:
-    fmin_q = st.date_input(
-        "Desde",
-        value=f_min,
-        min_value=pd.Timestamp(fechas_d[0]).date() if fechas_d else None,
-        max_value=pd.Timestamp(fechas_d[-1]).date() if fechas_d else None,
-        key="q_f1",
-        label_visibility="collapsed",
-    )
-    if fmin_q != f_min:
-        st.session_state["f1"] = fmin_q
-        st.rerun()
-with qc4:
-    fmax_q = st.date_input(
-        "Hasta",
-        value=f_max,
-        min_value=pd.Timestamp(fechas_d[0]).date() if fechas_d else None,
-        max_value=pd.Timestamp(fechas_d[-1]).date() if fechas_d else None,
-        key="q_f2",
-        label_visibility="collapsed",
-    )
-    if fmax_q != f_max:
-        st.session_state["f2"] = fmax_q
-        st.rerun()
-with qc5:
-    st.markdown(
-        f'<div style="padding-top:6px;text-align:center">{nivel_badge(nivel_activo)}</div>',
-        unsafe_allow_html=True,
-    )
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown(
+    f'<div class="quick-bar" style="display:flex;align-items:center;gap:16px;'
+    f'flex-wrap:wrap;padding:8px 4px">'
+    f'<span style="font-weight:700;color:#1C2B3A">🔬 {analito}</span>'
+    f"{nivel_badge(nivel_activo)}"
+    f'<span style="color:#64748B;font-size:.85rem">📅 '
+    f"{f_min.strftime('%d/%m/%Y')} → {f_max.strftime('%d/%m/%Y')}</span>"
+    f"</div>",
+    unsafe_allow_html=True,
+)
 
 # Banner demo
 if data_src == "🔬 Modo Demo":
@@ -452,14 +507,7 @@ with tab_dash:
             )
             for tab_n, niv in zip(tabs_niveles, nivs_analito):
                 with tab_n:
-                    sub_n = evaluar_westgard(
-                        df_all[
-                            (df_all["Analito"] == analito)
-                            & (df_all["Nivel"] == niv)
-                            & (df_all["Fecha"] >= pd.Timestamp(f_min))
-                            & (df_all["Fecha"] <= pd.Timestamp(f_max))
-                        ].copy()
-                    )
+                    sub_n = eval_rango.get((analito, niv), pd.DataFrame())
                     if sub_n.empty:
                         st.info("Sin datos para este nivel.")
                     else:
@@ -591,12 +639,7 @@ with tab_sigma:
     sigma_data = []
     for an in analitos_ls:
         for niv in niveles_globales:
-            sub = df_all[
-                (df_all["Analito"] == an)
-                & (df_all["Nivel"] == niv)
-                & (df_all["Fecha"] >= pd.Timestamp(f_min))
-                & (df_all["Fecha"] <= pd.Timestamp(f_max))
-            ].copy()
+            sub = eval_rango.get((an, niv), pd.DataFrame())
             if sub.empty:
                 continue
             sig = calcular_sigma(sub, tea_editado.get(an, TEA_DEFAULT))
@@ -739,21 +782,14 @@ with tab_biorad:
     hay_alarmas = False
     for an in analitos_ls:
         for niv in sorted(df_all["Nivel"].unique()):
-            sub = evaluar_westgard(
-                df_all[
-                    (df_all["Analito"] == an)
-                    & (df_all["Nivel"] == niv)
-                    & (df_all["Fecha"] >= pd.Timestamp(f_min))
-                    & (df_all["Fecha"] <= pd.Timestamp(f_max))
-                ].copy()
-            )
+            sub = eval_rango.get((an, niv), pd.DataFrame())
             if sub.empty:
                 continue
             u = sub.iloc[-1]
             if u["Estado"] != "Verde":
                 hay_alarmas = True
                 render_kb_panel(an, u["Estado"], u["Regla_Violada"], niv)
-        r4s_br = evaluar_r4s(df_all, an, f_min, f_max)
+        r4s_br = r4s_por_analito.get(an)
         if r4s_br:
             hay_alarmas = True
             st.markdown(
@@ -858,15 +894,9 @@ with tab_log:
     all_log_frames = []
     for an in analitos_ls:
         for niv in niveles_globales_log:
-            sub = evaluar_westgard(
-                df_all[
-                    (df_all["Analito"] == an)
-                    & (df_all["Nivel"] == niv)
-                    & (df_all["Fecha"] >= pd.Timestamp(f_min))
-                    & (df_all["Fecha"] <= pd.Timestamp(f_max))
-                ].copy()
-            )
+            sub = eval_rango.get((an, niv), pd.DataFrame())
             if not sub.empty:
+                sub = sub.copy()
                 sub["_nivel_label"] = NIVELES.get(niv, NIVELES["N"])["label"]
                 all_log_frames.append(sub)
     df_full_log = pd.concat(all_log_frames, ignore_index=True) if all_log_frames else pd.DataFrame()
@@ -906,8 +936,21 @@ with tab_log:
         ):
             c.markdown(f"**{lbl}**")
         st.markdown("<hr style='border-color:#E2E8F0'>", unsafe_allow_html=True)
+        # Clave estable e independiente del filtro activo: si cambia el rango de
+        # fechas, el check "Hecha" sigue apuntando a la misma violación. Solo se
+        # añade sufijo numérico si hay violaciones idénticas repetidas en el día.
+        claves_vistas = {}
+        claves_log = []
+        for _, row in df_log.iterrows():
+            base = (
+                f"{row['Fecha'].date()}_{row['Analito']}_"
+                f"{row.get('_nivel_label', 'N')}_{row['Regla_Violada']}"
+            )
+            n_rep = claves_vistas.get(base, 0)
+            claves_vistas[base] = n_rep + 1
+            claves_log.append(base if n_rep == 0 else f"{base}_{n_rep}")
         for idx, row in df_log.iterrows():
-            key = f"{row['Fecha'].date()}_{row['Analito']}_{row.get('_nivel_label', 'N')}_{idx}"
+            key = claves_log[idx]
             rcols = st.columns([1.4, 2.0, 1.4, 1.1, 1.2, 1.3, 1.4, 1.4, 1.3])
             rcols[0].write(row["Fecha"].strftime("%d/%m/%Y"))
             rcols[1].write(row["Analito"])
@@ -923,10 +966,6 @@ with tab_log:
                 save_accion(db_con, key, nuevo, usuario=usuario_actual)
             st.markdown("<hr style='border-color:#E2E8F0'>", unsafe_allow_html=True)
         acciones_db = load_acciones(db_con)
-        claves_log = [
-            f"{row['Fecha'].date()}_{row['Analito']}_{row.get('_nivel_label', 'N')}_{idx}"
-            for idx, row in df_log.iterrows()
-        ]
         total = len(df_log)
         hechas = sum(acciones_db.get(k, False) for k in claves_log)
         pend = total - hechas
@@ -1205,6 +1244,11 @@ with tab_cfg:
                         df_gh.loc[mask, "Media_Objetivo"] = vals["media"]
                         df_gh.loc[mask, "SD_Objetivo"] = vals["sd"]
             df_gh["Lote"] = lote_actual
+            try:
+                guardar_mediciones(db_con, df_gh, fuente="github", usuario=usuario_actual)
+                df_gh = cargar_mediciones(db_con, fuente="github")
+            except Exception:
+                logger.exception("Fallo al persistir mediciones de GitHub (config)")
             st.session_state["df_github"] = df_gh
             st.session_state["data_src_github"] = msg
             st.session_state["github_last_sync"] = datetime.now()
