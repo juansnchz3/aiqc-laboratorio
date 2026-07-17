@@ -24,7 +24,19 @@ html,body,[data-testid="stAppViewContainer"]{
   background-color:var(--bg)!important;color:var(--text);
   font-family:'Inter','Segoe UI',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;}
-#MainMenu,footer,header,[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important;}
+/* Ojo: NO ocultar [data-testid="stToolbar"] entero — dentro vive
+   stExpandSidebarButton, el botón que reabre la barra lateral colapsada
+   (Streamlit ≥1.45). Se ocultan solo el menú ⋮, Deploy y demás acciones. */
+#MainMenu,footer,[data-testid="stDecoration"],[data-testid="stStatusWidget"],
+[data-testid="stMainMenu"],[data-testid="stAppDeployButton"],
+[data-testid="stToolbarActions"]{display:none!important;}
+[data-testid="stHeader"]{background:transparent!important;box-shadow:none!important;}
+[data-testid="stExpandSidebarButton"]{
+  background:linear-gradient(135deg,var(--brand),var(--brand-dark))!important;
+  border-radius:10px!important;padding:6px!important;box-shadow:var(--shadow-md)!important;
+  transition:transform .15s,box-shadow .15s;}
+[data-testid="stExpandSidebarButton"]:hover{transform:scale(1.06);box-shadow:var(--shadow-lg)!important;}
+[data-testid="stExpandSidebarButton"] *{color:#FFFFFF!important;fill:#FFFFFF!important;}
 [data-testid="stAppViewBlockContainer"]{padding-top:2.4rem;}
 h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 
@@ -44,6 +56,44 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
   border-radius:var(--radius-sm)!important;color:#EEF2F7!important;}
 [data-testid="stSidebar"] [data-baseweb="tab-list"]{
   background:rgba(255,255,255,.05)!important;border:none!important;}
+/* Botón interno para colapsar la barra (la flecha «) — visible sobre el fondo oscuro */
+[data-testid="stSidebarCollapseButton"] button{border-radius:8px!important;}
+[data-testid="stSidebarCollapseButton"] button:hover{background:rgba(255,255,255,.10)!important;}
+[data-testid="stSidebarCollapseButton"] svg,
+[data-testid="stSidebarCollapseButton"] span{color:#CBD5E1!important;}
+/* Botones del sidebar: pastillas translúcidas sobre el fondo oscuro */
+[data-testid="stSidebar"] .stButton>button{
+  background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;
+  color:#D3DCE7!important;box-shadow:none!important;}
+[data-testid="stSidebar"] .stButton>button:hover{
+  background:rgba(255,255,255,.12)!important;border-color:rgba(255,255,255,.32)!important;
+  transform:none!important;}
+[data-testid="stSidebar"] .stButton>button[kind="primary"]{
+  background:linear-gradient(135deg,var(--brand),var(--teal))!important;border:none!important;
+  color:#FFFFFF!important;box-shadow:0 2px 10px rgba(13,158,110,.30)!important;}
+/* Expander del sidebar (p. ej. «Datos guardados»): versión oscura, no la blanca global */
+[data-testid="stSidebar"] [data-testid="stExpander"]{
+  background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.13)!important;
+  box-shadow:none!important;}
+/* Títulos de sección y chip de usuario del sidebar */
+.sb-sec{font-size:.68rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:#7E93AC!important;margin:4px 2px 6px;}
+.sb-user{display:flex;align-items:center;justify-content:center;gap:8px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;padding:6px 14px;margin:0 10px 12px;font-size:.78rem;}
+
+/* ── Navegación del sidebar (st.navigation) ───────────── */
+[data-testid="stSidebarNav"]{padding:.35rem .25rem .1rem;}
+[data-testid="stSidebarNav"] ul{gap:2px!important;}
+[data-testid="stSidebarNav"] a{
+  border-radius:9px!important;margin:1px 8px!important;padding:8px 12px!important;
+  transition:background .15s,box-shadow .15s;}
+[data-testid="stSidebarNav"] a:hover{background:rgba(255,255,255,.07)!important;}
+[data-testid="stSidebarNav"] a span{color:#D3DCE7!important;font-weight:600!important;}
+[data-testid="stSidebarNav"] a[aria-current="page"]{
+  background:linear-gradient(135deg,rgba(96,165,250,.26),rgba(52,211,153,.18))!important;
+  box-shadow:inset 3px 0 0 #60A5FA;}
+[data-testid="stSidebarNav"] a[aria-current="page"] span{color:#FFFFFF!important;font-weight:700!important;}
 
 /* ── Inputs (área principal) ──────────────────────────── */
 [data-baseweb="select"]>div,[data-testid="stTextInput"] input,[data-testid="stDateInput"] input,
@@ -90,6 +140,36 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
   letter-spacing:.1em;margin-top:8px;}
 .kpi-sub{font-size:.76rem;color:#AEB8C6;margin-top:3px;}
 
+/* ── Panel semáforo (overview.py, nativo) ─────────────── */
+.ov-wrap{margin-bottom:4px;}
+.ov-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.ov-title{font-weight:800;font-size:1.08rem;color:var(--ink);}
+.ov-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.ov-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;
+  font-size:.78rem;font-weight:700;}
+.ov-chip-rojo{background:rgba(229,62,62,.12);color:#C53030;}
+.ov-chip-ambar{background:rgba(245,158,11,.15);color:#B4740A;}
+.ov-chip-verde{background:rgba(13,158,110,.13);color:#0B7A57;}
+.ov-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
+.ov-card{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--brand);
+  border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow-sm);
+  transition:box-shadow .2s,transform .2s;}
+.ov-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.ov-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-bottom:10px;flex-wrap:wrap;}
+.ov-name{font-weight:700;font-size:.95rem;color:var(--ink);}
+.ov-r4s{font-size:.68rem;font-weight:700;color:var(--red);background:rgba(229,62,62,.1);
+  padding:2px 7px;border-radius:6px;}
+.ov-cells{display:flex;gap:8px;flex-wrap:wrap;}
+.ov-cell{flex:1 1 76px;min-width:76px;background:var(--bg);border:1px solid var(--line-soft);
+  border-left:4px solid var(--teal);border-radius:8px;padding:7px 9px;}
+.ov-cell-top{display:flex;align-items:flex-start;gap:5px;min-height:26px;font-size:.72rem;}
+.ov-cell-lbl{color:var(--muted);font-weight:600;}
+.ov-cell-val{font-size:1.15rem;font-weight:800;color:var(--ink);margin-top:2px;line-height:1.1;}
+.ov-cell-meta{font-size:.66rem;color:var(--faint);margin-top:2px;}
+.ov-empty{color:var(--muted);padding:22px;text-align:center;background:var(--surface);
+  border:1px dashed var(--line);border-radius:var(--radius);}
+
 /* ── Badges de estado ─────────────────────────────────── */
 .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;
   font-size:.78rem;font-weight:700;box-shadow:var(--shadow-sm);}
@@ -104,17 +184,30 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .nivel-PA{background:#FFF1F2;color:#9F1239;border:1px solid #FECDD3;}
 
 /* ── Cabecera principal ───────────────────────────────── */
-.aiqc-header{background:linear-gradient(120deg,var(--brand) 0%,var(--teal) 100%);
+.aiqc-header{background:linear-gradient(120deg,var(--brand-dark) 0%,var(--brand) 46%,var(--teal) 100%);
   border-radius:18px;padding:22px 28px;margin-bottom:14px;
   box-shadow:0 8px 26px rgba(26,111,196,.24);position:relative;overflow:hidden;}
 .aiqc-header::after{content:"";position:absolute;top:-40%;right:-6%;width:230px;height:230px;
   background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%);border-radius:50%;}
-.aiqc-header h2{color:#FFFFFF!important;margin:0 0 4px;font-size:1.5rem;font-weight:800;}
-.aiqc-header .meta{color:rgba(255,255,255,.85);font-size:.875rem;}
+.aiqc-header::before{content:"";position:absolute;bottom:-55%;left:22%;width:190px;height:190px;
+  background:radial-gradient(circle,rgba(255,255,255,.10),transparent 70%);border-radius:50%;}
+.aiqc-header h2{color:#FFFFFF!important;margin:0 0 8px;font-size:1.5rem;font-weight:800;}
+.aiqc-header .meta{display:flex;gap:8px;flex-wrap:wrap;}
+.hd-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.24);border-radius:999px;padding:3px 12px;
+  font-size:.76rem;font-weight:600;color:#FFFFFF;backdrop-filter:blur(3px);}
+.hd-chip b{font-weight:800;}
 
 /* ── Barra de contexto ────────────────────────────────── */
-.quick-bar{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-  padding:10px 18px;margin-bottom:18px;box-shadow:var(--shadow-sm);}
+.quick-bar{display:flex;align-items:stretch;flex-wrap:wrap;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);padding:0;
+  margin-bottom:18px;box-shadow:var(--shadow-sm);overflow:hidden;}
+.qb-item{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:9px 20px;border-right:1px solid var(--line-soft);}
+.qb-item:last-child{border-right:none;}
+.qb-lbl{font-size:.62rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--faint);}
+.qb-val{display:flex;align-items:center;gap:7px;font-size:.9rem;font-weight:700;color:var(--ink);}
 
 /* ── Sidebar branding ─────────────────────────────────── */
 .sb-logo{text-align:center;font-size:2.7rem;margin-bottom:2px;
@@ -128,18 +221,50 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .sync-pill{background:rgba(13,158,110,.13);border:1px solid rgba(13,158,110,.32);
   border-radius:var(--radius-sm);padding:10px 14px;font-size:.82rem;color:#6EE7B7!important;margin-top:8px;}
 
-/* ── Encabezado de sección ────────────────────────────── */
-.sec-head{font-size:.95rem;font-weight:700;color:var(--brand);
-  border-left:3px solid var(--teal);padding-left:11px;margin:26px 0 14px;}
+/* ── Encabezado de página ─────────────────────────────── */
+/* Cada página fija su color con --ph-accent (inline); por defecto, brand. */
+.page-head{position:relative;display:flex;align-items:center;gap:14px;margin:2px 0 20px;
+  padding-bottom:14px;border-bottom:1px solid var(--line);}
+.page-head::after{content:"";position:absolute;left:0;bottom:-2px;width:64px;height:3px;
+  border-radius:3px;background:var(--ph-accent,var(--brand));}
+.page-head .ph-icon{font-size:1.7rem;line-height:1;
+  background:linear-gradient(135deg,#EFF6FF,#ECFDF5);border:1px solid var(--line);
+  border-radius:12px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-sm);flex-shrink:0;}
+.page-head .ph-txt h3{margin:0;font-size:1.32rem;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
+.page-head .ph-txt p{margin:2px 0 0;font-size:.86rem;color:var(--muted);}
+
+/* ── Encabezado de sección (letrero tipo «eyebrow») ───── */
+.sec-head{display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:800;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--ink);margin:28px 0 14px;}
+.sec-head::before{content:"";width:9px;height:9px;border-radius:3px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--brand),var(--teal));}
+.sec-head::after{content:"";flex:1;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--line),transparent);}
 
 /* ── Login ────────────────────────────────────────────── */
 .login-card{background:var(--surface);border:1px solid var(--line);border-radius:22px;
   padding:52px 48px 40px;max-width:430px;margin:56px auto 0;box-shadow:var(--shadow-lg);}
 
-/* ── Banner Gemini ────────────────────────────────────── */
+/* ── Banners informativos ─────────────────────────────── */
 .gemini-banner{background:linear-gradient(135deg,#EFF6FF 0%,#ECFDF5 100%);
-  border:1px solid #C7DEFB;border-radius:var(--radius-sm);padding:11px 16px;
+  border:1px solid #C7DEFB;border-left:4px solid var(--brand);
+  border-radius:var(--radius-sm);padding:11px 16px;
   font-size:12.5px;color:#1E40AF;margin-bottom:14px;}
+.demo-banner{display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#EFF6FF,#ECFDF5);
+  border:1px solid #BFDBFE;border-left:4px solid var(--brand);
+  border-radius:var(--radius);padding:14px 20px;margin-bottom:20px;box-shadow:var(--shadow-sm);}
+.demo-banner .db-icon{font-size:1.9rem;line-height:1;}
+.demo-banner .db-title{font-weight:800;color:var(--brand);font-size:.93rem;}
+.demo-banner .db-text{color:#475569;font-size:.83rem;margin-top:2px;}
+
+/* ── Cobertura KB (chips por grupo analítico) ─────────── */
+.kb-group{display:flex;align-items:baseline;gap:8px 10px;flex-wrap:wrap;margin-bottom:10px;}
+.kb-group-name{font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);margin-right:2px;}
+.kb-chip{display:inline-block;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;
+  border-radius:999px;padding:3px 12px;font-size:.76rem;font-weight:600;}
 
 /* ── Tarjetas Bio-Rad ─────────────────────────────────── */
 .biorad-card,.biorad-card-red,.biorad-card-amber{
@@ -169,6 +294,11 @@ td{padding:10px 13px;border-bottom:1px solid var(--line-soft);color:var(--text);
 tr:hover td{background:#FBFCFE;}
 
 /* ── Componentes Streamlit ────────────────────────────── */
+[data-testid="stForm"]{background:var(--surface);border:1px solid var(--line)!important;
+  border-radius:var(--radius)!important;padding:20px 22px!important;box-shadow:var(--shadow-sm);}
+[data-testid="stSidebar"] [data-testid="stForm"]{background:rgba(255,255,255,.04);
+  border-color:rgba(255,255,255,.13)!important;box-shadow:none;}
+[data-testid="stAlert"]{border-radius:var(--radius-sm)!important;}
 [data-testid="stChatMessage"]{background:var(--surface)!important;border:1px solid var(--line)!important;
   border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)!important;}
 [data-testid="stMetric"]{background:var(--surface);border:1px solid var(--line);

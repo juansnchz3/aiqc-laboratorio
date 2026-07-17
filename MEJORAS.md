@@ -95,8 +95,26 @@ analitos × 3 niveles la app se arrastrará.
   "Guardar PDF"). Generar directamente en el `st.download_button` (con
   callback o generación perezosa) para dejarlo en un clic.
 - [x] 🟡 **Vista global tipo "semáforo"** *(hecho: `aiqc/overview.py`, panel
-  HTML embebido al inicio del Dashboard — matriz analito × nivel, analitos en
-  Rojo primero, alarmas R-4s; theme-aware, sin toolchain).*
+  al inicio del Dashboard — matriz analito × nivel, analitos en Rojo primero,
+  alarmas R-4s. Reescrito de `components.html` (iframe) a **render nativo**
+  `st.markdown` con clases `.ov-*` de `styles.py`: sigue el tema claro de la app
+  en vez de quedar aislado en un iframe que seguía el modo oscuro del sistema).*
+- [x] 🟢 **Botón para reabrir el sidebar colapsado** *(hecho: en Streamlit 1.50
+  el botón es `stExpandSidebarButton` y vive **dentro** de `stToolbar`, que el
+  CSS ocultaba entero. Ahora se ocultan solo `stMainMenu`, `stAppDeployButton`
+  y `stToolbarActions`; el botón de reexpandir queda visible y estilado en
+  color de marca).*
+- [x] 🟢 **Estética de sidebar y páginas** *(hecho: navegación `st.navigation`
+  estilada — hover, estado activo con borde de acento; encabezado de página
+  uniforme `.page-head` con icono en pastilla, título y subtítulo en cada
+  sección).*
+- [x] 🟢 **Letreros y colores (Fase D)** *(hecho: acento cromático por página
+  vía `--ph-accent` en `.page-head` — loseta del icono y subrayado del título;
+  `.sec-head` rediseñado como letrero «eyebrow» (mayúsculas + punto degradado +
+  línea difuminada); cabecera principal con chips translúcidos `.hd-chip` para
+  fuente/período/usuario; barra de contexto `.quick-bar` con celdas etiquetadas
+  `.qb-*`; banners demo/Gemini con clase propia y borde de acento; cobertura de
+  la KB Bio-Rad como chips `.kb-chip` por grupo analítico).*
 - [ ] 🟢 **Deprecación `use_container_width`**: Streamlit lo retira tras
   2025-12-31 a favor de `width='stretch'`. Está usado decenas de veces en
   `app.py`; migración mecánica pendiente (solo avisos, aún funciona).

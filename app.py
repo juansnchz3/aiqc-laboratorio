@@ -156,14 +156,13 @@ with st.sidebar:
         "tecnico": "role-tecnico",
     }.get(rol_actual, "role-tecnico")
     st.markdown(
-        f'<div style="text-align:center;margin-bottom:12px">'
-        f'<span style="color:#94A3B8;font-size:.78rem">👤 '
+        f'<div class="sb-user"><span style="color:#94A3B8">👤 '
         f'{usuario_sesion.get("nombre", "") or usuario_actual}</span>'
-        f'&nbsp;<span class="{rol_badge_css}">{rol_actual.upper()}</span></div>',
+        f'<span class="{rol_badge_css}">{rol_actual.upper()}</span></div>',
         unsafe_allow_html=True,
     )
     st.markdown("---")
-    st.markdown("**📂 Fuente de datos**")
+    st.markdown('<div class="sb-sec">📂 Fuente de datos</div>', unsafe_allow_html=True)
     tab_src1, tab_src2 = st.tabs(["📤 Subir archivo", "☁ GitHub / OpenLab"])
 
     with tab_src1:
@@ -349,7 +348,7 @@ with st.sidebar:
         f_min = f_max = pd.Timestamp(fechas_d[0]).date() if fechas_d else datetime.today().date()
 
     st.markdown("---")
-    st.markdown("**Estado del laboratorio**")
+    st.markdown('<div class="sb-sec">🚦 Estado del laboratorio</div>', unsafe_allow_html=True)
     eval_completo = evaluar_todo(df_all)
     r4s_por_analito = evaluar_r4s_todo(df_all, f_min, f_max)
     for an in sorted(df_all["Analito"].unique()):
@@ -392,9 +391,9 @@ st.markdown(
 <div>
 <h2>🔬 AIQC – Control de Calidad</h2>
 <div class="meta">
-<b>Fuente:</b> {data_src} &nbsp;·&nbsp;
-<b>Período:</b> {f_min.strftime('%d/%m/%Y')} → {f_max.strftime('%d/%m/%Y')}
-&nbsp;·&nbsp; <b>Usuario:</b> {usuario_actual}
+<span class="hd-chip">Fuente&nbsp;<b>{data_src}</b></span>
+<span class="hd-chip">📅 {f_min.strftime('%d/%m/%Y')} → {f_max.strftime('%d/%m/%Y')}</span>
+<span class="hd-chip">👤 <b>{usuario_actual}</b></span>
 </div>
 </div>
 <div style="font-size:1.1rem">{estado_badge(estado_actual)}</div>
@@ -410,12 +409,13 @@ st.markdown(
 # estados divergentes y errores de session_state al sincronizarlos.
 # ==============================================================
 st.markdown(
-    f'<div class="quick-bar" style="display:flex;align-items:center;gap:16px;'
-    f'flex-wrap:wrap;padding:8px 4px">'
-    f'<span style="font-weight:700;color:#1C2B3A">🔬 {analito}</span>'
-    f"{nivel_badge(nivel_activo)}"
-    f'<span style="color:#64748B;font-size:.85rem">📅 '
-    f"{f_min.strftime('%d/%m/%Y')} → {f_max.strftime('%d/%m/%Y')}</span>"
+    f'<div class="quick-bar">'
+    f'<span class="qb-item"><span class="qb-lbl">Analito</span>'
+    f'<span class="qb-val">🔬 {analito}</span></span>'
+    f'<span class="qb-item"><span class="qb-lbl">Nivel</span>'
+    f'<span class="qb-val">{nivel_badge(nivel_activo)}</span></span>'
+    f'<span class="qb-item"><span class="qb-lbl">Período</span>'
+    f'<span class="qb-val">📅 {f_min.strftime("%d/%m/%Y")} → {f_max.strftime("%d/%m/%Y")}</span></span>'
     f"</div>",
     unsafe_allow_html=True,
 )
@@ -424,14 +424,11 @@ st.markdown(
 if data_src == "🔬 Modo Demo":
     st.markdown(
         """
-    <div style="background:linear-gradient(135deg,#EFF6FF,#ECFDF5);
-    border:1.5px solid #BFDBFE;border-radius:12px;
-    padding:14px 20px;margin-bottom:20px;
-    display:flex;align-items:center;gap:14px">
-    <div style="font-size:2rem">🔬</div>
+    <div class="demo-banner">
+    <div class="db-icon">🔬</div>
     <div>
-    <div style="font-weight:700;color:#1A6FC4;font-size:.95rem">Modo demostración activo</div>
-    <div style="color:#475569;font-size:.83rem;margin-top:2px">
+    <div class="db-title">Modo demostración activo</div>
+    <div class="db-text">
     Datos <b>simulados</b> de Amilasa (N, PB, PA) y ALT con alarmas reales de Westgard.
     En producción los datos se cargan automáticamente desde
     <b>OpenLab → GitHub → App</b> en tiempo real.
@@ -449,10 +446,28 @@ if data_src == "🔬 Modo Demo":
 # Leen el estado compartido (df_all, eval_rango, ultima…) del ámbito de
 # módulo, ya calculado arriba; st.navigation solo ejecuta la página activa.
 # ==============================================================
+def _page_header(icon, titulo, subtitulo="", accent="#1A6FC4"):
+    """Encabezado visual uniforme para cada página de análisis.
+
+    `accent` colorea la loseta del icono y la línea inferior (--ph-accent),
+    dando a cada página una identidad cromática propia. Los sufijos hex
+    (1C/0A/45) son el canal alfa del color en formato #RRGGBBAA.
+    """
+    sub = f"<p>{subtitulo}</p>" if subtitulo else ""
+    st.markdown(
+        f'<div class="page-head" style="--ph-accent:{accent}">'
+        f'<div class="ph-icon" style="background:linear-gradient(135deg,{accent}1C,{accent}0A);'
+        f'border-color:{accent}45">{icon}</div>'
+        f'<div class="ph-txt"><h3>{titulo}</h3>{sub}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ── PÁGINA: DASHBOARD ────────────────────────────────────────
 def _page_dashboard():
+    _page_header("📊", "Dashboard", "Visión general del control de calidad", accent="#1A6FC4")
     # Panel semáforo: vista global del laboratorio (matriz analito × nivel),
-    # embebido con components.html. Reusa los dicts ya evaluados y cacheados.
+    # nativo (st.markdown). Reusa los dicts ya evaluados y cacheados.
     resumen_lab = construir_resumen(eval_rango, r4s_por_analito)
     render_overview_panel(resumen_lab)
     st.markdown("---")
@@ -543,7 +558,7 @@ def _page_dashboard():
 
 # ── TAB 2: EWMA / CUSUM ──────────────────────────────────────
 def _page_ewma():
-    st.markdown("### 📉 EWMA / CUSUM — Detección Temprana de Tendencias")
+    _page_header("📉", "EWMA / CUSUM", "Detección temprana de tendencias", accent="#7C3AED")
     if df_series.empty or ultima is None:
         st.warning("No hay datos para el analito/nivel/rango seleccionado.")
     else:
@@ -640,7 +655,7 @@ def _page_ewma():
 
 # ── TAB 3: SIGMA METRICS ─────────────────────────────────────
 def _page_sigma():
-    st.markdown("### 📈 Sigma Metrics — Evaluación de Calidad Analítica")
+    _page_header("📈", "Sigma Metrics", "Evaluación de calidad analítica", accent="#0D9E6E")
     with st.expander("⚙ Editar límites TEa por analito", expanded=False):
         tea_editado = {}
         cols_tea = st.columns(min(len(analitos_ls), 3))
@@ -789,7 +804,7 @@ def _page_sigma():
 
 # ── TAB 4: GUÍA BIO-RAD ──────────────────────────────────────
 def _page_biorad():
-    st.markdown("### 📋 Guía Bio-Rad de Acciones Correctivas")
+    _page_header("📋", "Guía Bio-Rad", "Acciones correctivas recomendadas", accent="#D97706")
     col_sel1, col_sel2 = st.columns([2, 1])
     with col_sel1:
         an_kb = st.selectbox(
@@ -806,7 +821,10 @@ def _page_biorad():
     st.markdown("<br>", unsafe_allow_html=True)
     render_kb_panel(an_kb, estado_sim, regla_sim, nivel_activo)
     st.markdown("---")
-    st.markdown("### 🔴 Alarmas activas en el período seleccionado")
+    st.markdown(
+        '<div class="sec-head">🔴 Alarmas activas en el período seleccionado</div>',
+        unsafe_allow_html=True,
+    )
     hay_alarmas = False
     for an in analitos_ls:
         for niv in sorted(df_all["Nivel"].unique()):
@@ -829,15 +847,24 @@ def _page_biorad():
     if not hay_alarmas:
         st.success("✅ No hay alarmas activas.")
     st.markdown("---")
-    st.markdown("### 📚 Cobertura de la base de conocimiento")
+    st.markdown(
+        '<div class="sec-head">📚 Cobertura de la base de conocimiento</div>',
+        unsafe_allow_html=True,
+    )
     for grupo, analitos_grupo in GRUPOS_ANALITICOS.items():
         con_ficha = [a for a in analitos_grupo if a in BIORAD_KB]
-        st.markdown(f"**{grupo}:** " + " · ".join([f"`{a}`" for a in con_ficha]))
+        chips = "".join(f'<span class="kb-chip">{a}</span>' for a in con_ficha)
+        st.markdown(
+            f'<div class="kb-group"><span class="kb-group-name">{grupo}</span>{chips}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ── TAB 5: ASISTENTE IA ──────────────────────────────────────
 def _page_chat():
-    st.markdown("### 🤖 Asistente AIQC — Powered by Google Gemini")
+    _page_header(
+        "🤖", "Asistente AIQC", "Análisis conversacional · Google Gemini", accent="#0891B2"
+    )
     modelo_activo = st.session_state.get("gemini_model_active", "models/gemini-2.5-flash")
     st.markdown(
         f'<div class="gemini-banner">🟢 <b>Google Gemini</b> · Modelo: <code>{modelo_activo}</code> · '
@@ -890,7 +917,12 @@ def _page_chat():
 def _page_log():
     col_ttl, col_csv, col_pdf = st.columns([3, 1, 1])
     with col_ttl:
-        st.markdown("### 📝 Registro de Incidencias y Trazabilidad")
+        _page_header(
+            "📝",
+            "Registro de Incidencias",
+            "Trazabilidad de acciones correctivas",
+            accent="#475569",
+        )
         st.caption(f"Fuente activa: {data_src} · Usuario: {usuario_actual}")
     lab_nombre = get_section("lab").get("nombre", "LAB. CENTRAL")
     with col_csv:
@@ -1022,7 +1054,7 @@ def _page_log():
 
 # ── TAB 7: USUARIOS ──────────────────────────────────────────
 def _page_usuarios():
-    st.markdown("### 👥 Gestión de Usuarios")
+    _page_header("👥", "Gestión de Usuarios", "Altas, roles y permisos de acceso", accent="#BE185D")
     if not tiene_permiso(rol_actual, "admin"):
         st.warning("🔒 Solo los administradores pueden gestionar usuarios.")
         st.info(f"Tu rol actual es **{rol_actual}**. Contacta con el administrador.")
@@ -1162,7 +1194,9 @@ def _page_usuarios():
 
 # ── TAB 8: CONFIGURACIÓN ─────────────────────────────────────
 def _page_cfg():
-    st.markdown("### ⚙ Configuración del laboratorio")
+    _page_header(
+        "⚙", "Configuración", "Valores objetivo, TEa y parámetros del laboratorio", accent="#64748B"
+    )
     st.caption("Introduce los valores objetivo de tus controles y el lote activo.")
     if "cfg_analitos" not in st.session_state:
         st.session_state["cfg_analitos"] = {}

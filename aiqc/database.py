@@ -246,8 +246,9 @@ def render_login(con):
         st.markdown("<br>", unsafe_allow_html=True)
         # st.form permite enviar con Enter desde cualquier campo.
         with st.form("form_login"):
-            username = st.text_input("Usuario", placeholder="admin", key="_u")
-            pwd = st.text_input("Contraseña", type="password", placeholder="••••••", key="_p")
+            # Sin placeholders: los campos arrancan vacíos (petición del usuario).
+            username = st.text_input("Usuario", key="_u")
+            pwd = st.text_input("Contraseña", type="password", key="_p")
             enviado = st.form_submit_button(
                 "Acceder al sistema →", use_container_width=True, type="primary"
             )
