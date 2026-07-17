@@ -56,6 +56,7 @@ from aiqc.charts import (
 )
 from aiqc.reports import generar_csv, generar_pdf
 from aiqc.ai_assistant import necesita_datos_qc, ia_responde_gemini
+from aiqc.overview import construir_resumen, render_overview_panel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -457,6 +458,12 @@ tab_dash, tab_ewma, tab_sigma, tab_biorad, tab_chat, tab_log, tab_usuarios, tab_
 
 # ── TAB 1: DASHBOARD ─────────────────────────────────────────
 with tab_dash:
+    # Panel semáforo: vista global del laboratorio (matriz analito × nivel),
+    # embebido con components.html. Reusa los dicts ya evaluados y cacheados.
+    resumen_lab = construir_resumen(eval_rango, r4s_por_analito)
+    render_overview_panel(resumen_lab)
+    st.markdown("---")
+
     if df_series.empty or ultima is None:
         st.warning("No hay datos para el analito/nivel/rango seleccionado.")
     else:
