@@ -110,6 +110,8 @@ if not st.session_state.get("_persistencia_rehidratada"):
     st.session_state["_persistencia_rehidratada"] = True
 
 ESTADO_CLS = {"Verde": "estado-verde", "Ámbar": "estado-ambar", "Rojo": "estado-rojo"}
+# Estado como texto con emoji para st.dataframe (no renderiza HTML/badges).
+ESTADO_TXT = {"Verde": "🟢 Verde", "Ámbar": "🟡 Ámbar", "Rojo": "🔴 Rojo"}
 
 
 # ==============================================================
@@ -521,13 +523,21 @@ def _page_dashboard():
         tail = df_series.tail(7)[
             ["Fecha", "Valor", "Z_Score", "Regla_Violada", "Score_Riesgo", "Estado", "Lote"]
         ].copy()
-        tail["Fecha"] = tail["Fecha"].dt.strftime("%d/%m/%Y")
-        tail["Estado"] = tail["Estado"].apply(estado_badge)
-        st.write(
+        tail["Estado"] = tail["Estado"].map(ESTADO_TXT).fillna(tail["Estado"])
+        st.dataframe(
             tail.rename(
                 columns={"Z_Score": "Z-Score", "Regla_Violada": "Regla", "Score_Riesgo": "Score"}
-            ).to_html(escape=False, index=False),
-            unsafe_allow_html=True,
+            ),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+                "Valor": st.column_config.NumberColumn("Valor", format="%.2f"),
+                "Z-Score": st.column_config.NumberColumn("Z-Score", format="%+.2f σ"),
+                "Score": st.column_config.ProgressColumn(
+                    "Score", min_value=0, max_value=100, format="%d"
+                ),
+            },
         )
 
 
@@ -605,17 +615,27 @@ def _page_ewma():
         st.markdown('<div class="sec-head">Tabla EWMA / CUSUM</div>', unsafe_allow_html=True)
         tabla_ec = pd.DataFrame(
             {
-                "Fecha": [f.strftime("%d/%m/%Y") for f in fechas],
-                "Z-Score": [round(z, 3) for z in z_scores],
-                "EWMA": [round(e, 4) for e in ewma_r["ewma"]],
-                "Estado EWMA": ewma_r["estados"],
-                "CUSUM+": [round(c, 3) for c in cusum_r["cusum_pos"]],
-                "CUSUM−": [round(c, 3) for c in cusum_r["cusum_neg"]],
-                "Alarma": ["🔴 SÍ" if a else "✅ No" for a in cusum_r["alarma_any"]],
+                "Fecha": list(fechas),
+                "Z-Score": z_scores,
+                "EWMA": ewma_r["ewma"],
+                "Estado EWMA": [ESTADO_TXT.get(e, e) for e in ewma_r["estados"]],
+                "CUSUM+": cusum_r["cusum_pos"],
+                "CUSUM−": cusum_r["cusum_neg"],
+                "Alarma": ["🔴 Sí" if a else "✅ No" for a in cusum_r["alarma_any"]],
             }
         )
-        tabla_ec["Estado EWMA"] = tabla_ec["Estado EWMA"].apply(estado_badge)
-        st.write(tabla_ec.to_html(escape=False, index=False), unsafe_allow_html=True)
+        st.dataframe(
+            tabla_ec,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+                "Z-Score": st.column_config.NumberColumn("Z-Score", format="%+.3f"),
+                "EWMA": st.column_config.NumberColumn("EWMA", format="%.4f"),
+                "CUSUM+": st.column_config.NumberColumn("CUSUM+", format="%.3f"),
+                "CUSUM−": st.column_config.NumberColumn("CUSUM−", format="%.3f"),
+            },
+        )
 
 
 # ── TAB 3: SIGMA METRICS ─────────────────────────────────────
@@ -727,7 +747,7 @@ def _page_sigma():
         )
         st.plotly_chart(fig_s, use_container_width=True)
         st.markdown('<div class="sec-head">Detalle</div>', unsafe_allow_html=True)
-        st.write(
+        st.dataframe(
             pd.DataFrame(
                 [
                     {
@@ -736,16 +756,23 @@ def _page_sigma():
                         "N": d["n"],
                         "Media": d["media"],
                         "SD": d["sd"],
-                        "CV%": f"{d['cv_pct']}%",
-                        "Sesgo%": f"{d['sesgo_pct']}%",
-                        "TEa%": f"{d['tea_pct']}%",
+                        "CV%": d["cv_pct"],
+                        "Sesgo%": d["sesgo_pct"],
+                        "TEa%": d["tea_pct"],
                         "Sigma": d["sigma"],
                         "Categoría": d["categoria"],
                     }
                     for d in sigma_data
                 ]
-            ).to_html(escape=False, index=False),
-            unsafe_allow_html=True,
+            ),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "CV%": st.column_config.NumberColumn("CV%", format="%.2f%%"),
+                "Sesgo%": st.column_config.NumberColumn("Sesgo%", format="%.2f%%"),
+                "TEa%": st.column_config.NumberColumn("TEa%", format="%.1f%%"),
+                "Sigma": st.column_config.NumberColumn("Sigma", format="%.2f σ"),
+            },
         )
         for d in sigma_data:
             s = d["sigma"]
