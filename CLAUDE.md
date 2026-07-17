@@ -74,8 +74,17 @@ Punto de entrada `app.py` (raíz). Toda la lógica vive en el paquete `aiqc/`:
 | `aiqc/measurements.py` | Persistencia de mediciones QC en SQLite: `guardar_mediciones` (append con dedup), `cargar_mediciones`, `borrar_fuente`, `resumen_fuentes`. Sin dependencias de UI. |
 | `aiqc/qc_rules.py`     | Núcleo estadístico: `evaluar_westgard`, `evaluar_r4s`, `calcular_ewma`, `calcular_cusum`, `calcular_sigma`. |
 | `aiqc/charts.py`       | Figuras Plotly (LJ, EWMA, CUSUM) y paneles UI (`render_kb_panel`, `render_r4s_alert`, `estado_badge`). |
+| `aiqc/overview.py`     | Panel semáforo del Dashboard: `construir_resumen` (datos) + `render_overview_panel` (HTML embebido vía `components.html`, sin toolchain). |
 | `aiqc/reports.py`      | Exportación `generar_csv` y `generar_pdf`. |
 | `aiqc/ai_assistant.py` | Asistente Gemini: `ia_responde_gemini`, `necesita_datos_qc`. |
+
+**UI (app.py):** la navegación usa `st.navigation` — cada sección es una función
+`_page_X()` registrada al final del archivo; leen el estado compartido del ámbito
+de módulo (calculado en el sidebar antes de las funciones). El código común
+(cabecera, barra de contexto, banner demo) se ejecuta a nivel de módulo como
+*shell* en todas las páginas. Las tablas usan `st.dataframe` + `column_config`,
+no HTML. El tema base está en `.streamlit/config.toml`; el refinado en
+`aiqc/styles.py` (tokens en `:root`). Ambos comparten paleta.
 
 Fuera del paquete, `scripts/sync_openlab.py` es el **agente de subida** que corre
 **en el laboratorio**: lee los TXT que exporta OpenLab, los normaliza al contrato

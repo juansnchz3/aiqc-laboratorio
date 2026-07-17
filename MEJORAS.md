@@ -74,30 +74,32 @@ analitos × 3 niveles la app se arrastrará.
 
 ## 4. Interfaz / UX
 
-- [ ] 🟡 **Migrar de 8 tabs a páginas** (`st.navigation` / `st.Page`): las
-  tabs renderizan *todo* en cada rerun aunque no se vean; con páginas solo se
-  ejecuta la activa (mejora rendimiento y URLs navegables por sección).
+- [x] 🟡 **Migrar de 8 tabs a páginas** (`st.navigation` / `st.Page`) *(hecho:
+  cada sección es una función `_page_X()` en el sidebar; solo se ejecuta la
+  página activa. Verificadas las 8 vía AppTest.)*
 - [x] 🟢 **Eliminar la barra de "controles rápidos" duplicada** *(hecho: era
   además un bug real — cambiar el analito en el sidebar rompía la app con
   `StreamlitAPIException` al reescribir `sel_analito` tras instanciarse el
   widget. Ahora es una barra de contexto de solo lectura.)*
-- [ ] 🟢 **Tablas con `st.dataframe` + `column_config`** en vez de
-  `to_html(escape=False)`: ordenables, filtrables, con barras de progreso para
-  el Score y estilo por Estado, y sin inyectar HTML crudo.
+- [x] 🟢 **Tablas con `st.dataframe` + `column_config`** *(hecho: las 3 tablas
+  HTML (Dashboard, EWMA/CUSUM, Sigma) migradas a st.dataframe ordenable, con
+  barra de progreso en Score y formato de columnas; sin HTML crudo.)*
 - [x] 🟢 **Login dentro de `st.form`** para que Enter envíe el formulario.
 - [ ] 🟢 Usar `st.toast` para confirmaciones (guardado de lote, sync OK…) en
   vez de `st.success` que empuja el layout.
-- [ ] 🟡 **Tema claro/oscuro coherente**: los colores están hardcodeados en
-  `styles.py` + decenas de estilos inline en `app.py`. Centralizar la paleta
-  en `.streamlit/config.toml` (`[theme]`) y variables CSS, y reducir el HTML
-  inline a componentes reutilizables en `charts.py`/`styles.py`.
+- [~] 🟡 **Tema coherente**: *(parcial: creado `.streamlit/config.toml` con
+  `[theme]` de marca y `styles.py` reescrito con tokens en `:root`. Pendiente:
+  reducir el HTML inline de `app.py` a componentes reutilizables, y un modo
+  oscuro real para el área principal.)*
 - [ ] 🟢 El PDF generado obliga a dos clics ("Descargar PDF" → generar →
   "Guardar PDF"). Generar directamente en el `st.download_button` (con
   callback o generación perezosa) para dejarlo en un clic.
-- [ ] 🟡 **Vista global tipo "semáforo"** como página de inicio: matriz
-  analitos × niveles con el estado de cada celda (hoy esa info existe pero
-  como lista de texto en el sidebar). Es lo primero que un supervisor quiere
-  ver al abrir la app.
+- [x] 🟡 **Vista global tipo "semáforo"** *(hecho: `aiqc/overview.py`, panel
+  HTML embebido al inicio del Dashboard — matriz analito × nivel, analitos en
+  Rojo primero, alarmas R-4s; theme-aware, sin toolchain).*
+- [ ] 🟢 **Deprecación `use_container_width`**: Streamlit lo retira tras
+  2025-12-31 a favor de `width='stretch'`. Está usado decenas de veces en
+  `app.py`; migración mecánica pendiente (solo avisos, aún funciona).
 
 ## 5. Corrección / lógica de QC
 
