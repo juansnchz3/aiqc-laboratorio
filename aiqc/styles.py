@@ -44,33 +44,87 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 [data-testid="stSidebar"]{
   background:linear-gradient(180deg,#1F3048 0%,#141E2C 100%)!important;
   border-right:none!important;box-shadow:6px 0 30px rgba(8,15,26,.22);}
-[data-testid="stSidebar"] *{color:#CBD5E1!important;}
-[data-testid="stSidebar"] strong,[data-testid="stSidebar"] b{color:#EEF2F7!important;}
+/* Texto del sidebar. Se acota a los contenedores que llevan texto sobre el
+   fondo oscuro. NO usar un comodín `*`: pintaba de gris claro también los
+   widgets que Streamlit dibuja con fondo blanco propio (botón «Browse
+   files», badges de rol, alertas) y los dejaba ilegibles. */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] *,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *,
+[data-testid="stSidebar"] label,[data-testid="stSidebar"] label *,
+[data-testid="stSidebar"] [data-baseweb="tab"] *,
+[data-testid="stSidebar"] summary,[data-testid="stSidebar"] summary *{
+  color:#CBD5E1!important;}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] b{color:#EEF2F7!important;}
 [data-testid="stSidebar"] hr{border-color:rgba(255,255,255,.09)!important;margin:14px 0!important;}
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{
   background:rgba(255,255,255,.04)!important;
   border:1.5px dashed rgba(255,255,255,.20)!important;border-radius:var(--radius-sm)!important;}
+/* Instrucciones del dropzone y ficha del archivo subido: Streamlit las pinta
+   con el color de texto del tema (oscuro), ilegible sobre el sidebar. */
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] *,
+[data-testid="stSidebar"] [data-testid="stFileUploaderFile"],
+[data-testid="stSidebar"] [data-testid="stFileUploaderFile"] *{color:#B7C4D4!important;}
+/* El botón «Browse files» lo dibuja Streamlit con fondo blanco propio: sin
+   esta regla quedaba texto claro sobre blanco. */
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button{
+  background:rgba(255,255,255,.10)!important;border:1px solid rgba(255,255,255,.24)!important;
+  border-radius:var(--radius-sm)!important;color:#EEF2F7!important;}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button *{color:#EEF2F7!important;}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover{
+  background:rgba(255,255,255,.18)!important;border-color:rgba(255,255,255,.38)!important;}
 [data-testid="stSidebar"] [data-baseweb="select"]>div,
-[data-testid="stSidebar"] [data-testid="stDateInput"] input{
+[data-testid="stSidebar"] [data-testid="stDateInput"] [data-baseweb="input"]{
   background:rgba(255,255,255,.07)!important;border:1px solid rgba(255,255,255,.14)!important;
   border-radius:var(--radius-sm)!important;color:#EEF2F7!important;}
+/* En BaseWeb el fondo visible del date input vive en el envoltorio
+   [data-baseweb="input"], no en el <input>. Pintando solo el <input> la caja
+   se quedaba en el #F6F8FB del tema con texto casi blanco encima (1.06:1). */
+[data-testid="stSidebar"] [data-testid="stDateInput"] [data-baseweb="base-input"],
+[data-testid="stSidebar"] [data-testid="stDateInput"] input{
+  background:transparent!important;border:none!important;
+  color:#EEF2F7!important;-webkit-text-fill-color:#EEF2F7!important;}
 [data-testid="stSidebar"] [data-baseweb="tab-list"]{
   background:rgba(255,255,255,.05)!important;border:none!important;}
+/* Las tabs del área principal usan fondos claros (--line-soft al pasar el
+   ratón); sobre el sidebar oscuro dejaban texto claro sobre claro (1.36:1).
+   El selector encadena tab-list para superar en especificidad al bloque
+   .stTabs, que va después en esta hoja. */
+[data-testid="stSidebar"] [data-baseweb="tab-list"] [data-baseweb="tab"]:hover{
+  background:rgba(255,255,255,.10)!important;}
+[data-testid="stSidebar"] [data-baseweb="tab-list"] [data-baseweb="tab"]:hover *{
+  color:#FFFFFF!important;}
+[data-testid="stSidebar"] [data-baseweb="tab-list"] [data-baseweb="tab"][aria-selected="true"]{
+  background:linear-gradient(135deg,var(--brand),var(--teal))!important;}
+[data-testid="stSidebar"] [data-baseweb="tab-list"] [data-baseweb="tab"][aria-selected="true"] *{
+  color:#FFFFFF!important;}
 /* Botón interno para colapsar la barra (la flecha «) — visible sobre el fondo oscuro */
 [data-testid="stSidebarCollapseButton"] button{border-radius:8px!important;}
 [data-testid="stSidebarCollapseButton"] button:hover{background:rgba(255,255,255,.10)!important;}
 [data-testid="stSidebarCollapseButton"] svg,
 [data-testid="stSidebarCollapseButton"] span{color:#CBD5E1!important;}
-/* Botones del sidebar: pastillas translúcidas sobre el fondo oscuro */
-[data-testid="stSidebar"] .stButton>button{
+/* Botones del sidebar: pastillas translúcidas sobre el fondo oscuro.
+   El selector repite [kind] para ganar en especificidad al bloque global de
+   botones: `.stButton>button[kind="secondary"]` empata a (0,2,1) y, al ir
+   después en esta hoja, se imponía y devolvía el fondo blanco.
+   El texto vive en un <div> interno, de ahí la regla con `*`. */
+[data-testid="stSidebar"] .stButton>button,
+[data-testid="stSidebar"] .stButton>button[kind="secondary"]{
   background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;
   color:#D3DCE7!important;box-shadow:none!important;}
-[data-testid="stSidebar"] .stButton>button:hover{
+[data-testid="stSidebar"] .stButton>button[kind="secondary"] *{color:#D3DCE7!important;}
+[data-testid="stSidebar"] .stButton>button:hover,
+[data-testid="stSidebar"] .stButton>button[kind="secondary"]:hover{
   background:rgba(255,255,255,.12)!important;border-color:rgba(255,255,255,.32)!important;
   transform:none!important;}
+[data-testid="stSidebar"] .stButton>button[kind="secondary"]:hover *{color:#FFFFFF!important;}
 [data-testid="stSidebar"] .stButton>button[kind="primary"]{
   background:linear-gradient(135deg,var(--brand),var(--teal))!important;border:none!important;
   color:#FFFFFF!important;box-shadow:0 2px 10px rgba(13,158,110,.30)!important;}
+[data-testid="stSidebar"] .stButton>button[kind="primary"] *{color:#FFFFFF!important;}
 /* Expander del sidebar (p. ej. «Datos guardados»): versión oscura, no la blanca global */
 [data-testid="stSidebar"] [data-testid="stExpander"]{
   background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.13)!important;
@@ -81,6 +135,19 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .sb-user{display:flex;align-items:center;justify-content:center;gap:8px;
   background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);
   border-radius:999px;padding:6px 14px;margin:0 10px 12px;font-size:.78rem;}
+/* Badge de rol del sidebar: variante oscura. Los .role-* de la tabla de
+   Usuarios son fondos claros y aquí quedaban ilegibles (1.36:1). */
+[data-testid="stSidebar"] .sb-user .sb-role{
+  border-radius:6px;padding:2px 9px;font-size:.66rem;font-weight:800;letter-spacing:.05em;}
+[data-testid="stSidebar"] .sb-user .sb-role.rol-admin{
+  background:rgba(96,165,250,.22)!important;border:1px solid rgba(96,165,250,.45)!important;
+  color:#DBEAFE!important;}
+[data-testid="stSidebar"] .sb-user .sb-role.rol-supervisor{
+  background:rgba(52,211,153,.20)!important;border:1px solid rgba(52,211,153,.42)!important;
+  color:#D1FAE5!important;}
+[data-testid="stSidebar"] .sb-user .sb-role.rol-tecnico{
+  background:rgba(245,158,11,.20)!important;border:1px solid rgba(245,158,11,.42)!important;
+  color:#FEF3C7!important;}
 
 /* ── Navegación del sidebar (st.navigation) ───────────── */
 [data-testid="stSidebarNav"]{padding:.35rem .25rem .1rem;}
@@ -274,6 +341,21 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
   box-shadow:0 2px 14px rgba(229,62,62,.09);}
 .biorad-card-amber{background:#FFFDF6;border-color:#FBE7B0;border-left-color:var(--amber);
   box-shadow:0 2px 14px rgba(245,158,11,.09);}
+/* Contenido interno de la ficha. La tarjeta se emite como un único bloque
+   HTML: repartir el <div> entre varios st.markdown no funciona (cada uno va
+   a su propio contenedor y Streamlit cierra las etiquetas sueltas). */
+.kb-head{font-size:1.02rem;font-weight:800;color:var(--ink);margin:0 0 3px;line-height:1.4;}
+.kb-head code{background:var(--line-soft);border-radius:5px;padding:1px 7px;
+  font-size:.85em;color:var(--brand-dark);}
+.kb-meta{font-size:.79rem;color:var(--muted);font-style:italic;margin-bottom:13px;}
+.kb-cols{display:grid;gap:2px 28px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
+.kb-lbl{font-size:.71rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);margin:2px 0 6px;}
+.kb-cols ul{margin:0 0 12px;padding-left:19px;}
+.kb-cols li{font-size:.86rem;color:var(--text);margin-bottom:4px;line-height:1.5;}
+.kb-foot{margin-top:6px;padding-top:11px;border-top:1px solid var(--line);
+  font-size:.79rem;color:var(--muted);line-height:1.75;}
+.kb-foot b{color:var(--text);}
 
 /* ── Filas de auditoría / usuarios ────────────────────── */
 .audit-row{background:#FBFCFE;border:1px solid var(--line);border-radius:var(--radius-sm);

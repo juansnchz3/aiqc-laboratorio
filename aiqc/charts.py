@@ -25,6 +25,11 @@ def estado_badge(e):
 # ==============================================================
 # PANEL BIO-RAD KB
 # ==============================================================
+def _lista(items):
+    """Lista <ul> a partir de un iterable de textos."""
+    return "<ul>" + "".join(f"<li>{i}</li>" for i in items) + "</ul>"
+
+
 def render_kb_panel(analito, estado, regla, nivel):
     kb = buscar_kb(analito, estado)
     nivel_label = NIVELES.get(nivel, NIVELES["N"])["label"]
@@ -40,36 +45,38 @@ def render_kb_panel(analito, estado, regla, nivel):
             unsafe_allow_html=True,
         )
         return
-    ico = "🔴" if estado == "Rojo" else "🟡"
-    st.markdown(f'<div class="{card_class}">', unsafe_allow_html=True)
-    st.markdown(
-        f"#### {ico} Guía Bio-Rad — **{analito}** · {nivel_label} · Regla `{regla}`\n"
-        f"*Producto: {kb['producto']} · Grupo: {kb['grupo']}*"
+    ico = "🔴" if estado == "Rojo" else "🟡" if estado == "Ámbar" else "🟢"
+
+    # Toda la ficha va en UN solo st.markdown. Repartir el <div> contenedor
+    # entre varias llamadas no envuelve nada: Streamlit aísla cada bloque y
+    # cierra las etiquetas sueltas, dejando una tarjeta vacía y el contenido
+    # fuera de ella.
+    col_causas = (
+        f'<div><div class="kb-lbl">Causas más probables</div>{_lista(kb["causas_comunes"])}'
     )
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Causas más probables:**")
-        for c in kb["causas_comunes"]:
-            st.markdown(f"- {c}")
-        if estado == "Ámbar" and any(r in regla for r in ["10_x", "4_1s", "2_2s"]):
-            st.markdown("**Causas de deriva:**")
-            for c in kb.get("causas_deriva", []):
-                st.markdown(f"- {c}")
-    with col2:
-        acciones = kb["acciones_1_3s"] if estado == "Rojo" else kb["acciones_warn"]
-        st.markdown("**Acciones correctivas:**")
-        for a in acciones:
-            st.markdown(f"- {a}")
+    if estado == "Ámbar" and any(r in regla for r in ["10_x", "4_1s", "2_2s"]):
+        deriva = kb.get("causas_deriva", [])
+        if deriva:
+            col_causas += f'<div class="kb-lbl">Causas de deriva</div>{_lista(deriva)}'
+    col_causas += "</div>"
+
+    acciones = kb["acciones_1_3s"] if estado == "Rojo" else kb["acciones_warn"]
+    col_acciones = f'<div><div class="kb-lbl">Acciones correctivas</div>{_lista(acciones)}</div>'
+
     st.markdown(
-        f"**Interferencias:** {kb['interferencias']}\n\n"
-        f"**Estabilidad:** {kb['estabilidad_biorad']}\n\n"
-        f"**Referencia:** {kb['referencia']}"
-    )
-    st.markdown(
-        '<small><a href="https://myeinserts-app.qcnet.com/home" target="_blank">myeInserts QCNet Bio-Rad</a></small>',
+        f'<div class="{card_class}">'
+        f'<div class="kb-head">{ico} Guía Bio-Rad — {analito} · {nivel_label} '
+        f"· Regla <code>{regla}</code></div>"
+        f'<div class="kb-meta">Producto: {kb["producto"]} · Grupo: {kb["grupo"]}</div>'
+        f'<div class="kb-cols">{col_causas}{col_acciones}</div>'
+        f'<div class="kb-foot"><b>Interferencias:</b> {kb["interferencias"]}<br>'
+        f'<b>Estabilidad:</b> {kb["estabilidad_biorad"]}<br>'
+        f'<b>Referencia:</b> {kb["referencia"]}<br>'
+        f'<a href="https://myeinserts-app.qcnet.com/home" target="_blank">'
+        f"myeInserts QCNet Bio-Rad</a></div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ==============================================================

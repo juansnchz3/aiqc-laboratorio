@@ -150,20 +150,24 @@ with st.sidebar:
         '<div class="sb-sub">Quality Control · v4.13 · OpenLab + cobas 8000</div>',
         unsafe_allow_html=True,
     )
+    # Variante oscura del badge: los .role-* de la tabla de Usuarios llevan
+    # fondo claro y aquí, sobre el sidebar, quedaban ilegibles.
     rol_badge_css = {
-        "admin": "role-admin",
-        "supervisor": "role-supervisor",
-        "tecnico": "role-tecnico",
-    }.get(rol_actual, "role-tecnico")
+        "admin": "rol-admin",
+        "supervisor": "rol-supervisor",
+        "tecnico": "rol-tecnico",
+    }.get(rol_actual, "rol-tecnico")
     st.markdown(
-        f'<div class="sb-user"><span style="color:#94A3B8">👤 '
+        f'<div class="sb-user"><span>👤 '
         f'{usuario_sesion.get("nombre", "") or usuario_actual}</span>'
-        f'<span class="{rol_badge_css}">{rol_actual.upper()}</span></div>',
+        f'<span class="sb-role {rol_badge_css}">{rol_actual.upper()}</span></div>',
         unsafe_allow_html=True,
     )
     st.markdown("---")
     st.markdown('<div class="sb-sec">📂 Fuente de datos</div>', unsafe_allow_html=True)
-    tab_src1, tab_src2 = st.tabs(["📤 Subir archivo", "☁ GitHub / OpenLab"])
+    # Etiquetas cortas: «Subir archivo» + «GitHub / OpenLab» sumaban 292 px en
+    # un sidebar de 256 y la segunda pestaña se cortaba.
+    tab_src1, tab_src2 = st.tabs(["📤 Archivo", "☁ GitHub"])
 
     with tab_src1:
         uploaded = st.file_uploader(
