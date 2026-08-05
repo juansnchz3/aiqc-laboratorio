@@ -1,10 +1,30 @@
-streamlit
-plotly
-pandas
-numpy
-fpdf2
-openpyxl
-google-generativeai
-kaleido
-requests
-bcrypt
+# Dependencias de ejecución de AIQC.
+#
+# Van acotadas a propósito. Sin rangos, el resolutor de Streamlit Cloud
+# instala lo último de todo en cada despliegue, y basta con que una
+# dependencia publique un cambio incompatible para que la app deje de
+# arrancar sin que nosotros hayamos tocado nada.
+
+streamlit>=1.50,<2
+
+# Starlette 1.4.0 (05-08-2026) hizo obligatorio el argumento
+# `thread_minimum_size` en GZipResponder.__init__. El middleware gzip de
+# Streamlit llama al constructor padre sin ese argumento, así que cada
+# petición lanza TypeError y el servidor responde 500 al health check: la
+# app nunca llega a arrancar. Streamlit admite `starlette<2`, un rango
+# demasiado amplio, de modo que hay que acotarlo aquí.
+# Revisar cuando Streamlit publique una versión compatible con 1.4.x.
+starlette<1.4
+
+# pandas 3.0 es un cambio de versión mayor sin probar contra este código.
+# 2.3.3 tiene ruedas para Python 3.14, que es lo que usa el Cloud.
+pandas>=2.0,<3
+numpy<3
+
+plotly>=6,<7
+fpdf2>=2.8,<3
+openpyxl>=3.1,<4
+google-generativeai>=0.8,<0.9
+kaleido>=1,<2
+requests>=2.32,<3
+bcrypt>=4,<6
