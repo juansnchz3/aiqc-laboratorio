@@ -53,6 +53,11 @@ DB_PATH = get_db_path()
 def init_db():
     con = sqlite3.connect(DB_PATH, check_same_thread=False)
     con.execute("PRAGMA journal_mode=WAL")
+    # Varias sesiones arrancan a la vez (el health check del servidor y el
+    # navegador, sin ir más lejos) y cada una abre su propia conexión. Sin
+    # espera, la segunda escritura simultánea aborta al instante con
+    # "database is locked"; así reintenta durante 5 s antes de rendirse.
+    con.execute("PRAGMA busy_timeout=5000")
     con.execute(
         """CREATE TABLE IF NOT EXISTS acciones (
         clave TEXT PRIMARY KEY, hecha INTEGER DEFAULT 0,
@@ -90,7 +95,10 @@ def init_db():
 
 
 def _migrar_usuarios(con):
-    # Columnas añadidas después de la v4.13; ALTER falla sin más si ya existen.
+    # Columnas añadidas después de la v4.13. Si ya existen, SQLite responde
+    # "duplicate column name" y no hay nada que hacer; cualquier otro
+    # OperationalError es un fallo de verdad y no debe quedar enmascarado
+    # (una columna que falte en silencio revienta mucho más tarde y lejos).
     for columna in (
         "debe_cambiar_pwd INTEGER DEFAULT 0",
         "intentos_fallidos INTEGER DEFAULT 0",
@@ -98,27 +106,35 @@ def _migrar_usuarios(con):
     ):
         try:
             con.execute(f"ALTER TABLE usuarios ADD COLUMN {columna}")
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
     con.commit()
 
 
 def _seed_admin(con):
-    if con.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 0:
-        pwd_default = get_section("auth").get("admin_password", "")
-        # Sin contraseña definida en secrets se usa la de fábrica, pero se
-        # obliga a cambiarla en el primer inicio de sesión.
-        forzar_cambio = 0
-        if not pwd_default:
-            pwd_default = "admin2024"
-            forzar_cambio = 1
-        pwd_hash = bcrypt.hashpw(pwd_default.encode(), bcrypt.gensalt()).decode()
-        con.execute(
-            "INSERT INTO usuarios (username,password_hash,rol,nombre,debe_cambiar_pwd) "
-            "VALUES (?,?,'admin','Administrador',?)",
-            ("admin", pwd_hash, forzar_cambio),
-        )
-        con.commit()
+    # El COUNT es solo un atajo para no calcular un hash bcrypt (que es lento
+    # a propósito) en cada arranque. La garantía real la da INSERT OR IGNORE:
+    # el par SELECT + INSERT no es atómico, y con la base recién creada varias
+    # sesiones concurrentes veían la tabla vacía a la vez, de modo que la
+    # segunda abortaba con "UNIQUE constraint failed: usuarios.username" y se
+    # llevaba por delante el arranque de la app.
+    if con.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] != 0:
+        return
+    pwd_default = get_section("auth").get("admin_password", "")
+    # Sin contraseña definida en secrets se usa la de fábrica, pero se
+    # obliga a cambiarla en el primer inicio de sesión.
+    forzar_cambio = 0
+    if not pwd_default:
+        pwd_default = "admin2024"
+        forzar_cambio = 1
+    pwd_hash = bcrypt.hashpw(pwd_default.encode(), bcrypt.gensalt()).decode()
+    con.execute(
+        "INSERT OR IGNORE INTO usuarios (username,password_hash,rol,nombre,debe_cambiar_pwd) "
+        "VALUES (?,?,'admin','Administrador',?)",
+        ("admin", pwd_hash, forzar_cambio),
+    )
+    con.commit()
 
 
 # ==============================================================
