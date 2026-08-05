@@ -1178,19 +1178,22 @@ def _page_usuarios():
             st.info("Sin registros de auditoría aún.")
         else:
             for ts, aud_user, accion, detalle in audit_rows:
+                # Tokens «tinta» de styles.py: los colores vivos como texto
+                # sobre la fila clara no llegaban a 4.5:1 (la marca de tiempo
+                # se quedaba en 2.50:1).
                 color_accion = {
-                    "LOGIN_OK": "#0D9E6E",
-                    "LOGIN_FALLIDO": "#E53E3E",
-                    "LOGOUT": "#94A3B8",
-                    "EXPORT_PDF": "#1A6FC4",
-                    "SYNC_GITHUB": "#6B5CA5",
+                    "LOGIN_OK": "var(--teal-ink)",
+                    "LOGIN_FALLIDO": "var(--red-ink)",
+                    "LOGOUT": "var(--faint)",
+                    "EXPORT_PDF": "var(--brand-dark)",
+                    "SYNC_GITHUB": "#5A4C90",
                 }.get(accion, "#475569")
                 st.markdown(
                     f'<div class="audit-row">'
-                    f'<span style="color:#94A3B8;font-size:.75rem">{ts[:16]}</span>&nbsp;&nbsp;'
-                    f'<b style="color:#1C2B3A">{aud_user}</b>&nbsp;&nbsp;'
+                    f'<span style="color:var(--faint);font-size:.75rem">{ts[:16]}</span>&nbsp;&nbsp;'
+                    f'<b style="color:var(--text)">{aud_user}</b>&nbsp;&nbsp;'
                     f'<span style="color:{color_accion};font-weight:700;font-size:.78rem">{accion}</span>'
-                    f'{"&nbsp;&nbsp;<span style=color:#64748B;font-size:.78rem>" + detalle[:80] + "</span>" if detalle else ""}'
+                    f'{"&nbsp;&nbsp;<span style=color:var(--muted);font-size:.78rem>" + detalle[:80] + "</span>" if detalle else ""}'
                     f"</div>",
                     unsafe_allow_html=True,
                 )

@@ -10,9 +10,16 @@ CSS = """
 
 :root{
   --brand:#1A6FC4; --brand-dark:#1557A0; --teal:#0D9E6E;
-  --ink:#16202E; --text:#1C2B3A; --muted:#64748B; --faint:#94A3B8;
+  /* Grises secundarios: ajustados para cumplir AA (4.5:1) sobre --surface y
+     sobre --bg. Los valores anteriores (#64748B / #94A3B8) daban 4.49:1 y
+     2.54:1 en textos pequeños como .kpi-lbl o .qb-lbl. */
+  --ink:#16202E; --text:#1C2B3A; --muted:#52607A; --faint:#65728A;
   --bg:#F6F8FB; --surface:#FFFFFF; --line:#E7ECF2; --line-soft:#F1F5F9;
   --amber:#F59E0B; --red:#E53E3E;
+  /* Variantes «tinta» de los colores de estado: los vivos (--red, --amber,
+     --teal) valen para bordes y fondos, pero como TEXTO sobre fondos claros
+     se quedan en 3-4:1. Estas cumplen AA. */
+  --red-ink:#A32020; --amber-ink:#8A5A08; --teal-ink:#076647;
   --radius:14px; --radius-sm:9px;
   --shadow-sm:0 1px 3px rgba(16,32,54,.06),0 1px 2px rgba(16,32,54,.04);
   --shadow-md:0 4px 14px rgba(16,32,54,.08);
@@ -205,7 +212,7 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .kpi-val{font-size:2.05rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;}
 .kpi-lbl{font-size:.68rem;font-weight:700;color:var(--faint);text-transform:uppercase;
   letter-spacing:.1em;margin-top:8px;}
-.kpi-sub{font-size:.76rem;color:#AEB8C6;margin-top:3px;}
+.kpi-sub{font-size:.76rem;color:var(--faint);margin-top:3px;}
 
 /* ── Panel semáforo (overview.py, nativo) ─────────────── */
 .ov-wrap{margin-bottom:4px;}
@@ -214,9 +221,9 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .ov-chips{display:flex;gap:8px;flex-wrap:wrap;}
 .ov-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;
   font-size:.78rem;font-weight:700;}
-.ov-chip-rojo{background:rgba(229,62,62,.12);color:#C53030;}
-.ov-chip-ambar{background:rgba(245,158,11,.15);color:#B4740A;}
-.ov-chip-verde{background:rgba(13,158,110,.13);color:#0B7A57;}
+.ov-chip-rojo{background:rgba(229,62,62,.12);color:var(--red-ink);}
+.ov-chip-ambar{background:rgba(245,158,11,.15);color:var(--amber-ink);}
+.ov-chip-verde{background:rgba(13,158,110,.13);color:var(--teal-ink);}
 .ov-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
 .ov-card{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--brand);
   border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow-sm);
@@ -225,7 +232,7 @@ h1,h2,h3,h4{color:var(--ink);letter-spacing:-.01em;}
 .ov-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
   margin-bottom:10px;flex-wrap:wrap;}
 .ov-name{font-weight:700;font-size:.95rem;color:var(--ink);}
-.ov-r4s{font-size:.68rem;font-weight:700;color:var(--red);background:rgba(229,62,62,.1);
+.ov-r4s{font-size:.68rem;font-weight:700;color:var(--red-ink);background:rgba(229,62,62,.1);
   padding:2px 7px;border-radius:6px;}
 .ov-cells{display:flex;gap:8px;flex-wrap:wrap;}
 .ov-cell{flex:1 1 76px;min-width:76px;background:var(--bg);border:1px solid var(--line-soft);
@@ -381,6 +388,16 @@ tr:hover td{background:#FBFCFE;}
 [data-testid="stSidebar"] [data-testid="stForm"]{background:rgba(255,255,255,.04);
   border-color:rgba(255,255,255,.13)!important;box-shadow:none;}
 [data-testid="stAlert"]{border-radius:var(--radius-sm)!important;}
+/* El texto de las alertas nativas se queda en 4.2-4.5:1 con la paleta de
+   Streamlit; se fuerza a las variantes «tinta» para cumplir AA. */
+[data-testid="stAlertContentSuccess"],[data-testid="stAlertContentSuccess"] *{
+  color:var(--teal-ink)!important;}
+[data-testid="stAlertContentWarning"],[data-testid="stAlertContentWarning"] *{
+  color:var(--amber-ink)!important;}
+[data-testid="stAlertContentError"],[data-testid="stAlertContentError"] *{
+  color:var(--red-ink)!important;}
+[data-testid="stAlertContentInfo"],[data-testid="stAlertContentInfo"] *{
+  color:#134E9B!important;}
 [data-testid="stChatMessage"]{background:var(--surface)!important;border:1px solid var(--line)!important;
   border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)!important;}
 [data-testid="stMetric"]{background:var(--surface);border:1px solid var(--line);
@@ -391,6 +408,22 @@ tr:hover td{background:#FBFCFE;}
   border-radius:var(--radius-sm)!important;box-shadow:var(--shadow-sm);}
 [data-testid="stDataFrame"]{border-radius:var(--radius-sm);overflow:hidden;
   border:1px solid var(--line);box-shadow:var(--shadow-sm);}
+
+/* ── Literales de Streamlit en español ────────────────── */
+/* Streamlit no tiene i18n: los textos del uploader vienen fijos en inglés.
+   Se ocultan con font-size:0 y se reponen desde ::after. Se apoya en los
+   data-testid (estables) y en la posición dentro del contenedor, no en las
+   clases emotion, que cambian entre versiones.
+   OJO: «25 MB» debe cuadrar con maxUploadSize de .streamlit/config.toml. */
+[data-testid="stFileUploaderDropzoneInstructions"]>div>span{font-size:0!important;}
+[data-testid="stFileUploaderDropzoneInstructions"]>div>span:nth-of-type(1)::after{
+  content:"Arrastra aquí el archivo";font-size:.86rem;font-weight:600;}
+[data-testid="stFileUploaderDropzoneInstructions"]>div>span:nth-of-type(2)::after{
+  content:"Máx. 25 MB · CSV, XLSX o XLS";font-size:.74rem;}
+[data-testid="stFileUploaderDropzone"] button,
+[data-testid="stFileUploaderDropzone"] button *{font-size:0!important;}
+[data-testid="stFileUploaderDropzone"] button::after{
+  content:"Examinar";font-size:.85rem;font-weight:600;}
 
 /* ── Scrollbar ────────────────────────────────────────── */
 ::-webkit-scrollbar{width:7px;height:7px;}
